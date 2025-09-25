@@ -1,0 +1,109 @@
+---
+title: "Relatório - Desafio 2"
+format:
+  html:
+    self-contained: true
+editor: visual
+  
+---
+
+```{r}
+#utilizando a lib reticulate para criar um virtual environment do python.
+#instalando pacotes necessarios em nosso venv.
+library(reticulate)
+virtualenv_create("myvenv")
+virtualenv_install("myvenv", packages=c("pandas", "calplot"))
+use_virtualenv("myvenv")
+```
+
+```{python}
+#code chunk 1: importando libs que utilizaremos.
+
+import pandas, calplot
+
+
+```
+
+```{python}
+#code chunk 2: definindo funcao que extrai estatistica parcial.
+
+#definindo funcao que rodara em cada chunk:
+def mystepfunction(ck):
+  
+  #escolhendo apenas uma airline, como foi proposto 
+  #"Podem fazer apenas para uma cia aérea (aerolinha)".
+  ck = ck[ck["AIRLINE"] == "AA"]
+  
+  #removendo linhas com valores nulos em celulas das colunas de interesse
+  #(mes, dia, atraso de chegada). Aqui, estamos substituindo os valores 
+  #vazio,NA e N/A pelo tipo especial de NA "pandas.NA".
+  ck[["MONTH","DAY","ARRIVAL_DELAY"]] = ck[["MONTH","DAY","ARRIVAL_DELAY"]].replace(("","NA","N/A"), pandas.NA)
+  
+  #agora, usamos o metodo dropna para remover todas linhas que 
+  #possuem o pandas.NA em celulas das colunas de interesse.
+  ck = ck.dropna(subset=["MONTH", "DAY", "ARRIVAL_DELAY"])
+  
+  #criando uma nova coluna binaria que tem valor 1 se o atraso 
+  #foi maior do que 10 min.
+  ck["DELAY_RATIO"] = ck["ARRIVAL_DELAY"] > 10 
+  #criando um objeto ps (estatisticas parciais) que possui apenas 
+  #as informacoes de interesse (taxa de atraso para cada dia do ano).
+  ps = ck.groupby(["MONTH", "DAY"])["DELAY_RATIO"].mean().reset_index()
+  
+  return ps
+  
+```
+
+```{python, results="hide"}
+#code chunk 3: importando dados em parcelas, e construindo 
+#um dataframe apenas com as estatisticas de interesse.
+#nota: foi utilizado results="hide" por conta da verbosidade excessiva do
+#pandas.
+
+#criando objeto "chunks", que cada vez que e chamado em uma iteracao, 
+#fornecera apenas o chunk de interesse. este objeto "lembra" de onde 
+#parou (isso e uma simplificacao operacional propria desta funcao, 
+#nao algo que ocorre sempre no python).
+chunks = pandas.read_csv("flights.csv.zip", chunksize=100000)
+
+#criando lista vazia para a qual serao salvos dataframes 
+#com estatisticas parciais.
+mylist = []
+
+#rodando loop que processa os chunks.
+for chunk in chunks:
+  #adicionamos cada chunk ao objeto mylist.
+  mylist.append(mystepfunction(chunk))
+
+#unificando estatisticas parciais em um novo dataframe. as columas dia 
+#e mes serao mantidas, e a coluna atraso (que representa proporcao 
+#de atrasos) sera a media da proporcao de atrasos de cada estatistica 
+#parcial correspondente a um dia do ano.
+
+#concatenando chunks. Utilizando argumento para nao importar indices no df
+#concatenado.
+finaldf = pandas.concat(mylist, ignore_index = True)
+#agrupando dados por data e computando atraso em cada dia
+finaldf = finaldf.groupby(["MONTH","DAY"], as_index=False)["DELAY_RATIO"].mean()
+
+#adicionando coluna com valor "datetime", necessario para plotar 
+#o calendario.
+finaldf["DATE"] = pandas.to_datetime({'year': 2015, 'month': finaldf['MONTH'], 'day': finaldf['DAY']})
+
+#definindo essa coluna com valores datetime como indice do dataframe
+finaldf.set_index('DATE', inplace=True)
+
+#plotando calendario. ocultei o ano, pois cada data pode representar 
+#o dia de qualquer ano, e nao de um ano especifico. No caso do 
+#conjunto utilizado, todas as observacoes sao do ano 2015, mas o 
+#codigo funcionaria para um conjunto com observacoes de multiplos anos.
+calplot.calplot(finaldf["DELAY_RATIO"], cmap="coolwarm", yearlabels='', figsize=(12,3))
+
+```
+
+```{python}
+#| echo: false
+print("Proporcao de atrasos da cia AA em cada dia do ano")
+
+```
+

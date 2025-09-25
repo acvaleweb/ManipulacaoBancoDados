@@ -1,0 +1,246 @@
+---
+title: "Relatório - Desafio 6"
+author: "Antonio Cyrineu Vale - 240453"
+format: 
+  html:
+    self-contained: true
+editor: visual
+execute:
+  warning: false    # escondendo output indesejado 
+  message: false    # escondendo output indesejado
+---
+
+
+```{r}
+library(RSQLite)
+library(tidyverse)
+
+if(!"discoCopy.db" %in% list.files("../data/")){
+  file.copy("..//data/disco.db", "..//data/discoCopy.db")
+}
+#vamos modificar essa cópia
+
+#nota: file.copy, além de fazer a cópia, retorna uma boolean
+#que representa se a operação pôde ser realizada ou não 
+
+db <- dbConnect(SQLite(), "../data/discoCopy.db")
+```
+
+```{r}
+dbListTables(db)
+
+#listando tabelas
+```
+
+```{r}
+#criando uma tabela vazia
+
+dbExecute(db,"CREATE TABLE instruments
+	  (AlbumId INTEGER,
+	   TrackId INTEGER,
+	   ElectricGuitar INTEGER,
+	   Singer INTEGER,
+	   Trumpet Integer)")
+
+#vendo que a tabela existe:
+dbListTables(db)
+```
+
+```{r}
+
+dbListFields(db, "instruments")
+#vendo quais são os fields da tabela instruments
+
+#removendo a tabela inteira:
+
+dbExecute(db, "DROP TABLE instruments")
+
+#vendo que a tabela sumiu:
+
+dbListTables(db)
+
+
+#adicionando ela novalemente, já que é necessária
+#em um próximo chunk
+dbExecute(db,"CREATE TABLE instruments
+	  (AlbumId INTEGER,
+	   TrackId INTEGER,
+	   ElectricGuitar INTEGER,
+	   Singer INTEGER,
+	   Trumpet Integer)")
+
+```
+
+```{r}
+aname = "Gilberto Gil"
+sql = paste0("SELECT ArtistId FROM artists ",
+"WHERE Name = '", aname, "'")
+aId = dbGetQuery(db, sql)
+sql = paste('SELECT Title FROM albums',
+'WHERE ArtistId =', aId)
+dbGetQuery(db, sql)
+
+# aname <- "Gilberto Gil'; DROP TABLE 'albums"
+#isso poderia destruir o banco de dados
+
+```
+
+```{r}
+sql = paste("SELECT ArtistId FROM artists",
+"WHERE Name = ?")
+query <- dbSendQuery(db, sql)
+dbBind(query, list("Gilberto Gil"))
+aId <- dbFetch(query)
+dbClearResult(query)# Segundo passo interno, não deve causar problema
+sql = paste('SELECT Title FROM albums',
+'WHERE ArtistId =', aId)
+dbGetQuery(db, sql)
+```
+
+```{r}
+#incluindo linhas em uma tabela
+
+dbListFields(db,"instruments")
+
+#pegando o EU Tu Eles q tem AlbumId 85:
+
+sql = paste("SELECT TrackId, Name FROM tracks", "WHERE ALbumId = 85")
+head(dbGetQuery(db, sql))
+```
+
+```{r}
+#incluindo linhas em uma tabela q existe
+
+dbExecute(db, "INSERT INTO instruments
+  VALUES 
+    ('85', '1075', 0, 1, 0),
+    ('85', '1078', 0, 1, 0)")
+
+dbGetQuery(db, "SELECT * FROM instruments")
+```
+
+```{r}
+#inserindo tabela diretamente
+dbWriteTable(db, "mtcars", mtcars)
+dbListTables(db)
+
+head(dbGetQuery(db, "SELECT * FROM mtcars"),3)
+```
+
+```{r}
+#inserindo uma tabela diretamente, com o append
+
+theAvgCar <- summarise_all(mtcars, function(x) round(mean(x),2))
+theAvgCar
+
+# ---
+
+dbWriteTable(db, "mtcars", theAvgCar, append = TRUE)
+tail(dbGetQuery(db, "SELECT * FROM mtcars"),3)
+
+```
+
+```{r}
+#fazendo overwrite the uma tabela
+
+dbWriteTable(db, "mtcars", mtcars, overwrite = TRUE)
+tail(dbGetQuery(db, "SELECT * FROM mtcars"),3)
+```
+
+```{r}
+
+#Lendo chunks
+
+res <- dbSendQuery(db, "SELECT * FROM mtcars WHERE cyl = 4")
+while(!dbHasCompleted(res)){
+	chunk <- dbFetch(res, n=5)
+	print(nrow(chunk))
+}
+
+dbClearResult(res)
+
+
+#este exemplo não é muito eficiente (...), e também, só guarda o último chunk.
+
+
+```
+
+```{r}
+
+#é importante fechar conexão. também vamos remover a cópia que fizemos da disco.db
+
+dbDisconnect(db)
+if("discoCopy.db" %in% list.files("../dados/")){
+   file.remove("../dados/discoCopy;db")
+}
+
+
+```
+
+```{r}
+
+#agora, vamos criar a NOSSA base de dados, a partir do airports e airlines
+
+
+airports <- read_csv("../data/airports.csv", col_types = "cccccdd")
+airlines <- read_csv("../data/airlines.csv", col_types = "cc")
+air <- dbConnect(SQLite(), dbname="../data/air.db")
+dbWriteTable(air, name = "airports", airports)
+dbWriteTable(air, name = "airlines", airlines)
+dbListTables(air)
+
+```
+
+```{r}
+
+#destruindo a tabela E a conexão
+
+dbDisconnect(air)
+if("air.db" %in% list.files("../data/")){
+file.remove("../data/air.db")
+}
+
+```
+
+```{r}
+
+#usando o dbplyr
+
+library(dbplyr)
+db <- dbConnect(SQLite(), "../data/disco.db")
+# original
+tracks <- tbl(db, "tracks")
+# dplyr
+tracks %>% head(3)
+
+```
+```{r}
+meanTracks <- tracks %>%
+group_by(AlbumId) %>%
+summarise(AvLen = mean(Milliseconds, na.rm = TRUE),
+AvCost = mean(UnitPrice, na.rm = TRUE))
+meanTracks
+
+
+# mas, observe
+
+meanTracks %>% show_query()
+
+#são comandos SQL encapsulados no pacote.
+
+```
+
+```{r}
+mT <- meanTracks %>% collect()
+mT
+
+dbDisconnect(db)
+
+```
+
+
+
+
+
+
+

@@ -1,0 +1,124 @@
+---
+title: "Relatório - Desafio 3"
+format: 
+  html:
+    self-contained: true
+editor: visual
+---
+
+```{r setup}
+#| include: false  # hide this setup chunk itself
+
+knitr::opts_chunk$set(
+  echo = TRUE,      # hide code
+  message = FALSE,   # hide messages
+  warning = FALSE,   # hide warnings
+  results = 'markup' # show only relevant output
+)
+
+```
+
+#### 1. Utilizando o pacote *arrow* para ler arquivos .parquet
+
+```{r}
+library(arrow) #carregando pacote arrow
+
+t_ini <- Sys.time() #salvando tempo antes da importação
+mydf1 <- read_parquet("titanic.parquet")
+t_end <- Sys.time() #salvando tempo após importação
+
+t_arrow_parquet <- t_end - t_ini #calculando e salvando tempo transcorrido
+
+```
+
+```{r}
+library(tidyverse)
+
+glimpse(mydf1) #checando se está tudo certo com o df
+
+mydf1 <- drop_na(mydf1, Age, Sex) #removendo NAs de colunas de interesse
+
+ggplot(mydf1, aes(x=Age, fill = Sex)) +
+  geom_histogram(alpha = 0.4, position = "identity", binwidth = 5, breaks = seq(0, 100, by = 5))+
+  labs(title = "Distribuição de Idades - Homens e Mulheres")+
+  scale_fill_manual(values = c("male" = "darkgreen", "female" = "purple"))
+
+#gerando gráfico com histograma de idades
+
+
+```
+
+#### 2. Usando o pacote *jsonlite* para ler arquivos .JSON
+
+```{r}
+library(jsonlite) #carregando pacote jsonlite
+
+ 
+t_ini <- Sys.time() #salvando tempo antes da importação
+mydf2 <- fromJSON("5MB.json")
+t_end <- Sys.time() #salvando tempo depois da inmportação
+
+t_jsonlite_json <- t_end - t_ini #calculando e salvando tempo transcorrido
+```
+
+```{r}
+glimpse(mydf2) #checando se está tudo certo com o df
+
+ggplot(mydf2, aes(x=version))+
+  geom_histogram(fill="steelblue", alpha=0.6)+
+  labs(title = "Distribuição De Versões Utilizadas")
+  
+  
+
+mydf2 <- mutate(mydf2, qtd_palavras = str_count(bio, "\\S+")) #determinando qtd de palavras com reg. expr. e colocando em uma nova coluna.
+
+ggplot(mydf2, aes(x=qtd_palavras))+
+  geom_histogram(fill="purple", alpha=0.6)+
+  labs(title = "Distribuição De Quantidade de Palavras na Bio")
+
+
+#gerando alguns gráficos. Como o conjunto é artificial e apenas para testes, não há nenhuma conclusão a se tomar.
+  
+```
+
+#### Extra: usando o pacote *duckdb* para ler os dois tipos de arquivo
+
+```{r}
+library(duckdb) #carregando pacotes
+library(DBI)
+
+connect <- dbConnect(duckdb::duckdb()) #utilizando DBI para criar 
+#uma nova instância de DB
+
+dbExecute(connect, "INSTALL json")  #instalando pacote no duckdb para que 
+dbExecute(connect, "LOAD json")     #este seja capaz de ler JSON
+
+
+t_ini <- Sys.time()  #salvando tempo
+mydf3 <- dbGetQuery(connect, "SELECT * FROM 'titanic.parquet'") 
+#importando arquivo .parquet
+t_end <- Sys.time() #salvando tempo
+
+t_duckdb_parquet <- t_end - t_ini #determinando tempo transcorrido
+
+
+t_ini <- Sys.time() #salvando tempo 
+mydf4 <- dbGetQuery(connect, "SELECT * FROM read_json_auto('5MB.json')")
+#importando arquivo .json
+t_end <- Sys.time() #salvando tempo
+
+t_duckdb_json <- t_end - t_ini #determinando tempo transcorrido
+
+glimpse(mydf3)   #checando se arquivos foram importados adequadamente
+glimpse(mydf4)
+
+```
+
+Comparando tempo de carregamento dos arquivos:
+
+```{r}
+print(c("arrow parquet"=t_arrow_parquet, "duckdb parquet"=t_duckdb_parquet, "jsonlite json" = t_jsonlite_json, "duckdb json"=t_duckdb_json))
+```
+
+O duckdb teve uma vantagem substancial na importação do arquivo parquet, se comparado à função do pacote arrow. A diferença de tempo de importação para o arquivo JSON entre os pacotes utilizados não foi substancial. No entanto, o teste foi feito em apenas um computador, e com arquivos pequenos.
+

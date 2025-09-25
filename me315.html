@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>acvale.web</title>
+
+  <style>
+    @font-face {
+      font-family: 'Sapporo Mincho';
+      src: url('https://acvaleweb.github.io/HinaMincho-Regular.ttf') format('truetype');
+    }
+
+    :root {
+      --base03: #002b36;
+      --base02: #073642;
+      --base01: #586e75;
+      --base00: #657b83;
+      --base0:  #839496;
+      --base1:  #93a1a1;
+      --base2:  #eee8d5;
+      --base3:  #fdf6e3;
+    }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      font-family: 'Sapporo Mincho', serif;
+      transition: background 0.3s, color 0.3s;
+      position: relative;
+    }
+
+    html.light body { background-color: var(--base3); color: var(--base00); }
+    html.dark body  { background-color: var(--base03); color: var(--base2); }
+
+    .theme-toggle {
+      position: fixed;
+      top: 1vw;
+      right: 1vw;
+      width: 100px;
+      height: 100px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: 'Sapporo Mincho', serif;
+      font-size: 5rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    html.light body .theme-toggle,
+    html.light body #htmlLinksBox,
+    html.light body #htmlViewer {
+      background-color: var(--base2);
+      color: var(--base00);
+    }
+
+    html.dark body .theme-toggle,
+    html.dark body #htmlLinksBox,
+    html.dark body #htmlViewer {
+      background-color: var(--base01);
+      color: var(--base2);
+    }
+
+    /* HTML Links Box */
+    #htmlLinksBox {
+      position: fixed;
+      top: 1vw;
+      left: 1vw;
+      width: 100px;
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    #htmlLinksBox a {
+      cursor: pointer;
+      text-decoration: none;
+      font-family: 'Sapporo Mincho', serif;
+      font-size: 1.2rem;
+      text-align: center;
+      padding: 5px;
+      color: inherit;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    #htmlLinksBox a:hover {
+      text-decoration: underline;
+    }
+
+    /* HTML Viewer */
+    #htmlViewer {
+      position: fixed;
+      top: 1vw;
+      left: calc(120px + 2vw);
+      width: 50vw;
+      height: 70vh;
+      border-radius: 8px;
+      display: none;
+      flex-direction: column;
+      z-index: 1000;
+      resize: both;
+      overflow: hidden;
+      min-width: 300px;
+      min-height: 200px;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    #viewerHeader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 10px;
+    }
+
+    #viewerHeader button {
+      cursor: pointer;
+      font-size: 1.5rem;
+      border: none;
+      background: none;
+      color: inherit;
+      padding: 0 5px;
+      transition: opacity 0.2s, background 0.3s, color 0.3s;
+    }
+
+    #viewerHeader button:hover { opacity: 0.7; }
+
+    #viewerFrame {
+      flex: 1;
+      width: 100%;
+      border: none;
+      border-radius: 6px;
+      transition: background 0.3s, color 0.3s;
+    }
+  </style>
+
+  <script>
+    // Apply initial theme to <html> to prevent flash
+    const savedTheme = localStorage.getItem('theme');
+    const theme = savedTheme === 'light' ? 'light' : 'dark';
+    document.documentElement.classList.add(theme);
+  </script>
+</head>
+<body>
+
+  <!-- Toggle buttons -->
+  <button id="themeToggle" class="theme-toggle" onclick="toggleTheme()">暗</button>
+  <button id="homeIcon" class="theme-toggle" style="right: calc(100px + 1vw + 20px);" onclick="location.href='https://acvaleweb.github.io/index.html'">&#x2302;</button>
+
+  <!-- HTML Links Box -->
+  <div id="htmlLinksBox">
+    <a data-file="desafio1.html">Desafio 1</a>
+    <a data-file="desafio2.html">Desafio 2</a>
+    <a data-file="desafio3.html">Desafio 3</a>
+    <a data-file="desafio4.html">Desafio 4</a>
+    <a data-file="desafio5.html">Desafio 5</a>
+    <a data-file="desafio6.html">Desafio 6</a>
+    <a data-file="desafio7.html">Desafio 7</a>
+    <a data-file="desafio8.html">Desafio 8</a>
+    <a data-file="desafio9.html">Desafio 9</a>
+    <a data-file="index.html">Repositório</a>
+  </div>
+
+  <!-- HTML Viewer -->
+  <div id="htmlViewer">
+    <div id="viewerHeader">
+      <button id="prevBtn">←</button>
+      <button id="fullscreenBtn">⛶</button>
+      <button id="openNewPageBtn">↗</button>
+      <button id="nextBtn">→</button>
+      <button id="closeViewer">✖</button>
+    </div>
+    <iframe id="viewerFrame" src=""></iframe>
+  </div>
+
+  <script>
+    // Toggle theme dynamically
+    function toggleTheme() {
+      const htmlEl = document.documentElement;
+      const isDark = htmlEl.classList.contains('dark');
+      htmlEl.classList.toggle('dark');
+      htmlEl.classList.toggle('light');
+      const newTheme = isDark ? 'light' : 'dark';
+      localStorage.setItem('theme', newTheme);
+      document.getElementById('themeToggle').textContent = newTheme === 'dark' ? '暗' : '明';
+    }
+
+    // Initialize button text after DOM loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      document.getElementById('themeToggle').textContent = savedTheme === 'dark' ? '暗' : '明';
+    });
+
+    // HTML Viewer logic
+    const viewer = document.getElementById('htmlViewer');
+    const iframe = document.getElementById('viewerFrame');
+    const links = document.querySelectorAll('#htmlLinksBox a');
+
+    let htmlFiles = Array.from(links).map(a => a.dataset.file);
+    let currentIndex = 0;
+
+    links.forEach((link, index) => {
+      link.onclick = () => {
+        currentIndex = index;
+        iframe.src = link.dataset.file;
+        viewer.style.display = 'flex';
+      };
+    });
+
+    // Viewer buttons
+    document.getElementById('prevBtn').onclick = () => {
+      currentIndex = (currentIndex - 1 + htmlFiles.length) % htmlFiles.length;
+      iframe.src = htmlFiles[currentIndex];
+    };
+    document.getElementById('nextBtn').onclick = () => {
+      currentIndex = (currentIndex + 1) % htmlFiles.length;
+      iframe.src = htmlFiles[currentIndex];
+    };
+    document.getElementById('fullscreenBtn').onclick = () => {
+      if (iframe.requestFullscreen) iframe.requestFullscreen();
+    };
+    document.getElementById('openNewPageBtn').onclick = () => {
+      window.open(htmlFiles[currentIndex], '_blank');
+    };
+    document.getElementById('closeViewer').onclick = () => {
+      viewer.style.display = 'none';
+    };
+  </script>
+
+</body>
+</html>

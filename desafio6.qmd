@@ -1,0 +1,184 @@
+---
+title: "Relatório - Desafio 6"
+author: "Antonio Vale"
+format: 
+  html:
+    self-contained: true
+editor: visual
+execute:
+  warning: false    # escondendo output indesejado 
+  message: false    # escondendo output indesejado
+---
+
+#### 
+
+```{r}
+library(RSQLite) #importando library implementação do sql
+library(htmlTable) #importando o pacote que eu gosto para printar
+```
+
+1\.
+
+```{r}
+path <- "../data"   #armazenando pasta que contém o arquivo em uma var
+
+fname <- file.path(path, "disco.db") #usando fname para concatenar nome da pasta e do arquivo
+```
+
+2\.
+
+```{r}
+conn = dbConnect(SQLite(), fname)  #abrindo server local de sql e chamando conexão de "conn", abrimos o arquivo localizado em 1
+```
+
+3\.
+
+```{r}
+dbListTables(conn) #usando função para listar tabelas
+```
+
+4\.
+
+```{r}
+dbListFields(conn, "customers") #consultando as colunas da tabela "customers"
+```
+```{r}
+dbListFields(conn, "albums")
+```
+```{r}
+dbListFields(conn, "invoice_items")
+
+```
+```{r}
+dbListFields(conn, "invoices")
+```
+
+5\.
+
+```{r}
+resposta <- dbGetQuery(conn, "select count(CustomerId) as 'quantidade de clientes' from customers") 
+#usando função interna do sql "count()" para contar quantos clientes estão cadastrados, e chamamos a coluna de "quantidade de clientes"
+
+htmlTable(resposta) #gerando tabela em html
+```
+
+6\.
+
+```{r}
+resposta <- dbGetQuery(conn, "select count(distinct country) as 'quantidade de países' from customers") 
+#consultando a quantidade de países distintos na tabela "customers", renomeando a coluna para 'quantidade de países'
+
+htmlTable(resposta) #gerando tabela em html
+```
+
+7\.
+
+```{r}
+resposta <- dbGetQuery(conn, "select country, count(*) as quantidade_de_clientes from customers group by country order by quantidade_de_clientes desc") 
+#consultando o número de clientes por país, ordenando pela quantidade de clientes em ordem decrescente
+
+htmlTable(resposta) #gerando tabela em html
+```
+
+8\.
+
+```{r}
+resposta <- dbGetQuery(conn, "select country, count(*) as quantidade_de_clientes from customers group by country order by quantidade_de_clientes desc limit 5") 
+#consultando os 5 países com maior número de clientes, ordenados pela quantidade de clientes
+
+htmlTable(resposta) #gerando tabela em html
+```
+
+9\.
+
+```{r}
+resposta <- dbGetQuery(conn, "select distinct country from customers where length(country)=6") 
+#consultando países com nomes de exatamente 6 caracteres
+
+htmlTable(resposta) #gerando tabela em html
+```
+
+10\.
+
+```{r}
+resposta <- dbGetQuery(conn, "select distinct Name from tracks")
+#consultando todos os nomes distintos das músicas na tabela 'tracks'
+
+htmlTable(head(resposta, 10)) #gerando tabela em html
+```
+
+11.a - DESAFIO
+```{r}
+#consulta do álbum mais tocado por país
+#juntando invoice_items com invoices, customers, tracks e albums
+#somando a quantidade vendida como proxy de execuções
+#depois pegando só o álbum mais tocado em cada país
+
+resposta <- dbGetQuery(conn,"WITH album_play_count AS (
+    SELECT 
+        c.Country,
+        al.Title AS Album,
+        SUM(ii.Quantity) AS qtdReproducoes
+    FROM invoice_items ii
+    JOIN invoices i ON ii.InvoiceId = i.InvoiceId
+    JOIN customers c ON i.CustomerId = c.CustomerId
+    JOIN tracks t ON ii.TrackId = t.TrackId
+    JOIN albums al ON t.AlbumId = al.AlbumId
+    GROUP BY c.Country, al.Title
+)
+SELECT Country, Album, qtdReproducoes
+FROM (
+    SELECT 
+        Country,
+        Album,
+        qtdReproducoes,
+        ROW_NUMBER() OVER (PARTITION BY Country ORDER BY qtdReproducoes DESC) AS rank
+    FROM album_play_count
+) ranked
+WHERE rank = 1;")
+
+htmlTable(resposta) #gerando tabela html
+```
+
+11.b - DESAFIO
+```{r}
+#consulta do artista mais tocado por país
+#unindo invoice_items até artists passando por invoices, customers, tracks e albums
+#somando as quantidades vendidas
+#depois escolhendo o artista mais tocado em cada país
+
+resposta <- dbGetQuery(conn, "WITH artist_play_count AS (
+    SELECT 
+        c.Country,
+        ar.Name AS Artist,
+        SUM(ii.Quantity) AS qtdReproducoes
+    FROM invoice_items ii
+    JOIN invoices i ON ii.InvoiceId = i.InvoiceId
+    JOIN customers c ON i.CustomerId = c.CustomerId
+    JOIN tracks t ON ii.TrackId = t.TrackId
+    JOIN albums al ON t.AlbumId = al.AlbumId
+    JOIN artists ar ON al.ArtistId = ar.ArtistId
+    GROUP BY c.Country, ar.Name
+)
+SELECT Country, Artist, qtdReproducoes
+FROM (
+    SELECT 
+        Country,
+        Artist,
+        qtdReproducoes,
+        ROW_NUMBER() OVER (PARTITION BY Country ORDER BY qtdReproducoes DESC) AS rank
+    FROM artist_play_count
+) ranked
+WHERE rank = 1;")
+
+htmlTable(resposta) #gerando tabela html
+```
+
+
+
+11.c
+
+```{r}
+dbDisconnect(conn) #fechando a conexão com o banco de dados
+```
+

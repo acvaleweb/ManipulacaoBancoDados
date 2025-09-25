@@ -1,0 +1,64 @@
+---
+title: "Relatório - Desafio 1"
+author: "Antonio Vale"
+date: "2025-08-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(reticulate)
+virtualenv_create("myenv")
+
+use_virtualenv("myenv")
+py_install("pandas", envname="myenv")
+
+```
+
+```{r}
+#velocidade base R
+getwd()
+time1 <- as.numeric(Sys.time())
+
+mydataframe1 <- read.csv(unz("flights.csv.zip", "flights.csv"))
+time2 <- as.numeric(Sys.time())
+
+print("tempo baseR")
+print(time2-time1)
+```
+
+```{r}
+#velocidade readr
+library(readr)
+
+time1 <- as.numeric(Sys.time())
+mydataframe2 <- read_csv("flights.csv.zip")
+time2 <- as.numeric(Sys.time())
+
+print("tempo readr")
+print(time2-time1)
+```
+
+```{python}
+#velocidade python pandas
+import pandas
+import time
+
+time1 = time.time()
+
+mydataframe3 =  pandas.read_csv("./flights.csv.zip")
+
+time2 = time.time()
+
+print("tempo pandas")
+print(time2-time1)
+
+
+```
+
+
+
+

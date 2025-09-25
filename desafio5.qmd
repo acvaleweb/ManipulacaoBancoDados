@@ -1,0 +1,127 @@
+---
+title: "Relatório - Desafio 5"
+author: "Antonio Vale"
+format: 
+  html:
+    self-contained: true
+editor: visual
+execute:
+  warning: false    # escondendo output indesejado 
+  message: false    # escondendo output indesejado
+---
+
+#### 1. Carregando pacotes utilizados.
+
+```{r}
+library(RSQLite)
+library(htmlTable)
+```
+
+#### 2. Conectando ao database.
+
+```{r}
+mydb = dbConnect(SQLite(),"./disco.db")
+mydb
+```
+
+#### 3. Verificando "colunas" (campos) da tabela *albums*.
+
+```{r}
+#verificando as tabelas do database.
+dbListTables(mydb)
+#verificando campos da tabela albums.
+dbListFields(mydb, "albums")
+```
+
+#### 4. Salvando a tabela "albums" no objeto *album_mydb*.
+
+```{r}
+album_mydb <- dbGetQuery(mydb, "SELECT * FROM albums")
+#printando parte da tabela pra dar uma olhada.
+htmlTable(head(album_mydb, 10))
+```
+
+#### 5. Usando comando *SELECT* para selecionar as colunas *trackid, name, composer, unitprice. Ordenar o objeto por unitprice.*
+
+```{r}
+sqlInstruction <- "SELECT trackid, name, composer, unitprice FROM tracks ORDER BY unitprice"
+
+resposta <- dbGetQuery(mydb, sqlInstruction)
+
+htmlTable(head(resposta, 10))
+```
+
+#### 6. Selecionando cidades de todos os clientes, ordenando por cidade.
+
+```{r}
+resposta <- dbGetQuery(mydb, "SELECT DISTINCT city FROM customers ORDER BY city")
+htmlTable(head(resposta),10)
+```
+
+#### 7. Seleção condicional - todas as músicas do álbum com ID 1.
+
+```{r}
+resposta <- dbGetQuery(mydb, "SELECT name, albumid FROM tracks WHERE albumid =1")
+htmlTable(resposta)
+```
+
+#### 8. Limitando-se a 5 registros, após ordenação por nome, quais são os nomes, ID de álbum e ID de mídia de músicas com mídias de tipo 1 ou 2.
+
+```{r}
+resposta <- (dbGetQuery(mydb,"SELECT name, albumid, mediatypeid FROM tracks WHERE mediatypeid IN (1,2) ORDER BY name LIMIT 5"))
+htmlTable(resposta)
+```
+
+#### 9. Seleção de uma seleção - quais são as músicas (com trackid e albumid) produzidas pelo ariststid 12.
+
+```{r}
+resposta <- dbGetQuery(mydb, paste('SELECT trackid, name, albumid FROM tracks',
+'WHERE albumid IN',
+'(SELECT albumid FROM albums WHERE artistid==12)'))
+
+htmlTable(head(resposta,10))
+```
+
+#### 10. Faixas cujos nomes começam com qualquer caracter seguido de 'ere' e terminam com qualquer expressão.
+
+```{r}
+resposta <- dbGetQuery(mydb, "SELECT trackid, name FROM tracks WHERE name GLOB '?ere*'")
+
+htmlTable(head(resposta, 5))
+```
+
+#### 11. Faixas que possuem ao menos um dígito.
+
+```{r}
+resposta <- dbGetQuery(mydb, "SELECT trackid, name FROM tracks WHERE name GLOB '*[0-9]*'")
+
+htmlTable(head(resposta,5))
+```
+
+#### 12. Quantidade de faixas por disco.
+
+```{r}
+resposta <- dbGetQuery(mydb, 'SELECT albumid, COUNT(trackid) FROM tracks GROUP BY albumid')
+
+htmlTable(head(resposta,5))
+```
+
+#### 13. Quantas faixas o album 1 possui.
+
+```{r}
+resposta <- dbGetQuery(mydb, paste('SELECT albumid, COUNT(trackid)',
+'FROM tracks GROUP BY albumid',
+'HAVING albumid=1'))
+
+htmlTable(resposta)
+```
+
+#### 14. Nomes das faixas com título de álbum no qual ela está.
+
+```{r}
+resposta <- dbGetQuery(mydb, paste('SELECT trackid, name, title FROM tracks',
+'INNER JOIN albums ON albums.albumid=tracks.albumid'))
+
+htmlTable(head(resposta,10))
+```
+
