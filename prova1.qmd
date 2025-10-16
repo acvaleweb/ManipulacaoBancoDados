@@ -1,0 +1,212 @@
+---
+title: "Relatório - Prova 1 ME315"
+author: "Antonio Cyrineu Vale - 240453"
+format: 
+  html: 
+    self-contained: true
+
+editor: visual
+execute:
+  warning: false    # escondendo output indesejado 
+  message: false    # escondendo output indesejado
+---
+
+#### 1. Importando pacotes.
+
+```{r}
+library(readxl)
+library(lubridate)
+library(knitr)
+library(jsonlite)
+library(moments) # para medidas kurtose e assimetria
+library(ggplot2)
+
+library(tidyverse)
+```
+
+#### 2. Lendo arquivos.
+
+```{r}
+# Lendo os arquivos Excel
+# para todos os arquivos, foi necessário pular as 3 primeiras linhas para que a leitura ficasse correta
+amex <- read_excel("./amex_active.xlsx", skip=3)
+nasdaq <- read_excel("./nasdaq_active.xlsx", skip=3)
+nyse <- read_excel("./nyse_active.xlsx", skip=3)
+```
+
+#### 3. Tratando dados.
+
+```{r}
+# Renomeando colunas para apenas o ticker
+# A lógica utilizada aqui foi apagar tudo antes do últumo espaço da string, utilizando regex
+colnames(amex)[-1] <- sub(".*\\s", "", colnames(amex)[-1])
+colnames(nasdaq)[-1] <- sub(".*\\s", "", colnames(nasdaq)[-1])
+colnames(nyse)[-1] <- sub(".*\\s", "", colnames(nyse)[-1])
+```
+
+```{r}
+#unificando dataframes. full join para não perder dados
+dfcompleto <- full_join(amex,nasdaq, by = "Data") %>%
+full_join(nyse, by = "Data")
+
+```
+
+```{r}
+#padronizando NAs - transformando "-" em NAs
+dfcompleto[, -1][dfcompleto[, -1] == "-"] <- NA
+```
+
+```{r}
+#removendo linhas compostas inteiramente de NAs
+dfcompleto <- dfcompleto[rowSums(!is.na(dfcompleto[, -1])) > 0, ]
+```
+
+```{r}
+#salvando conjunto de dados em um CSV, antes de remover ou modificar dados (comentado pois não foi pedido na proposta)
+#write.csv(dfcompleto, "precos_diarios_240453.csv", row.names = FALSE)
+```
+
+```{r}
+#removendo colunas com >0.9 NAs. Equivalentemente, foram mantidas apenas colunas com mais do que 10% de dados não nulos.
+dfcompleto <- dfcompleto[, colMeans(!is.na(dfcompleto)) > (0.1)]
+
+```
+
+```{r}
+#padronizando coluna Data. Estava como tipo string, foi passado para tipo Date
+dfcompleto$Data <- as.character(dfcompleto$Data)
+dfcompleto$Data <- as.Date(dfcompleto$Data, format = "%Y-%m-%d")
+
+#ordenando dataframe de acordo com a data
+dfcompleto <- dfcompleto[order(dfcompleto$Data), ]
+```
+
+```{r}
+#transformando valores das demais colunas em numeric, atualmente são strings. Foi desconsiderada a primeira coluna, que tem a Data.
+dfcompleto[ , -1] <- lapply(dfcompleto[ , -1], as.numeric)
+```
+
+#### 4. Gerando objeto com log-retornos.
+
+```{r}
+# Cálculo dos log-retornos diários. Foi utilizada a instrução log(Pt/Pt-1) do enunciado. Isso significa que alguns valores serão inutilizados. Isso poderia ser solucionado selecionando o último valor não nulo no lugar de Pt-1, mas o custo computacional seria alto.
+dfcompleto <- dfcompleto %>%
+  mutate(across(-Data, ~ log(. / lag(.))))
+```
+
+```{r}
+# salvando tabela com log retorno diário em csv
+write.csv(dfcompleto, "retornos_diarios_240453.csv", row.names = FALSE) 
+```
+
+#### 5. Agrupando log-retornos de maneira mensal.
+
+```{r}
+# criando novo df com log-retorno mensal
+# nota-se que o log-return no mês é simplesmente a soma dos log-returns diários
+# este novo DF terá colunas ano-mês e log-retorno-mensal
+
+retornomensal <- dfcompleto %>%
+  mutate(Mes = format(floor_date(Data, "month"), "%Y-%m")) %>%  # formato "YYYY-MM"
+  group_by(Mes) %>%
+  summarise(across(-Data, sum, na.rm = TRUE)) %>%  # soma log-retornos diários no mês
+  ungroup()
+
+```
+
+#### 6. Gerando medidas de interesse.
+
+```{r}
+#gerando tabela com medidas solicitadas (max, min, etc)
+#pegando nomes das ações
+mystocks <- colnames(retornomensal)[-1] 
+
+#inicializando dataframe com coluna stock 
+medidas <- data.frame(Stock = mystocks)
+
+medidas <- medidas %>%
+#fazendo com que mutate aplique as funções em linhas ao invés de colunas
+  rowwise() %>%
+#tirando as estatísticas solicitadas do df retornomensal, e as salvando no df medidas. ignorando todos valores NA.
+  mutate(
+    media       = mean(retornomensal[[Stock]], na.rm = TRUE),
+    maximo        = max(retornomensal[[Stock]], na.rm = TRUE),
+    minimo        = min(retornomensal[[Stock]], na.rm = TRUE),
+    desvio         = sd(retornomensal[[Stock]], na.rm = TRUE),
+    assimetria   = moments::skewness(retornomensal[[Stock]], na.rm = TRUE),
+    kurtose   = moments::kurtosis(retornomensal[[Stock]], na.rm = TRUE),
+    mediana     = median(retornomensal[[Stock]], na.rm = TRUE)
+  ) %>%
+  ungroup()
+```
+
+```{r}
+#ordenando linhas de mystocks em ordem alfabética (por ticker)
+
+medidas <- medidas[order(medidas$Stock), ]
+```
+
+```{r}
+#visualizando valores para as primeiras 50 stocks 
+head(medidas, 50)
+
+#gerando objeto HTML separado com medidas para as primeiras 50 stocks, como solicitado
+medidas50 <- kable(medidas[1:50, ], format = "html")
+
+#gerando arquivo HTML
+writeLines(medidas50, "medidas_50.html")
+
+#printando tabela também neste relatório
+medidas50
+```
+
+#### 7. Gráfico - log-Retorno mensal em função do tempo - Ação escolhida: NVDA.
+
+```{r}
+
+# preparando dataframe com coluna cumulativa
+retornomensal_plot <- retornomensal %>%
+  arrange(Mes) %>%  # teoricamente o arrange é desnecessário, mas por precaução
+  mutate(NVDA_cumulativo = cumsum(NVDA),
+         Mes_index = row_number()) 
+# retorno cumulativo
+
+# transformando dados para formato longo para ggplot
+library(tidyr)
+ret_long <- retornomensal_plot %>%
+  pivot_longer(
+    cols = c(NVDA, NVDA_cumulativo),
+    names_to = "Tipo",
+    values_to = "Retorno"
+  )
+
+# plot
+ggplot(ret_long, aes(x = Mes_index, y = Retorno, color = Tipo)) +
+
+  # linhas de log-retornos
+  geom_line(size = 1) +  # tanto mensal quanto cumulativo
+
+  # linha de referência no ganho 0
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+
+  # títulos e labels
+  labs(
+    title = "Log-Retorno Mensal e Log-Retorno Mensal Acumulado da ação da Nvidia",
+    x = "Mês",
+    y = "Log-Retorno Mensal",
+    color = "Legenda"
+  ) +
+  scale_color_manual(
+    values = c("NVDA" = "blue", "NVDA_cumulativo" = "darkgreen"),
+    labels = c("NVDA" = "Log-Retorno Mensal", "NVDA_cumulativo" = "Log-Retorno Cumulativo")
+  ) +
+  theme_minimal()
+```
+
+#### 8. Output JSON.
+
+```{r}
+#gerando JSON
+
+write_json(medidas, "estatisticas_descritivas_mensais_seura.json", pretty = TRUE)
+```
