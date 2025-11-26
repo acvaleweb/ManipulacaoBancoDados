@@ -1,0 +1,516 @@
+---
+title: "Códigos com arquivos Feather, Json e Parquet"
+format: html
+editor: visual
+---
+
+## 1. Arquivo FEATHER
+
+### a. R
+
+```{r}
+# Função no R para o código rodar mais de uma vez
+trials <- function(action, iterations) {
+  tempos <- numeric()
+  
+  for (i in 1:iterations) {
+    tempo1 <- Sys.time()
+    
+    action()
+    
+    tempo2 <- Sys.time()
+    
+    tempos <- c(tempos,as.numeric(tempo2-tempo1))
+  }
+  
+  print(paste("Mean:", mean(tempos)))
+  print(paste("Std:", sd(tempos)))
+}
+```
+
+```{r, message=FALSE, warning=FALSE}
+library(arrow)
+
+importacao_feather_arrow <- function(){
+
+dados_feather <- read_feather("ol_dump_deletes_2025-11-06.feather")
+
+}
+
+trials(importacao_feather_arrow, 20)
+```
+
+### b. Julia
+
+```{r, message=FALSE, warning=FALSE}
+library(JuliaCall)
+julia_setup(installJulia = TRUE)
+```
+
+```{julia}
+# PACOTE PARA CRONOMETRAR
+using BenchmarkTools
+```
+
+```{julia}
+# Função no Julia para o código rodar mais de uma vez
+using Pkg
+Pkg.add("Statistics")
+Pkg.add("DataFrames")
+using Statistics
+using DataFrames
+
+
+function trials(action::Function, iterations::Int)
+    tempos = Float64[]
+
+    for i in 1:iterations
+        tempo1 = time()  
+
+        action()
+
+        tempo2 = time()
+        push!(tempos, tempo2 - tempo1)
+    end
+
+    println("Mean: ", mean(tempos))
+    println("Std: ", std(tempos))
+end;
+```
+
+```{julia}
+Pkg.add("Feather")
+using Feather
+
+function importacao_feather_feather()
+
+  dados_feather = Feather.read("ol_dump_deletes_2025-11-06.feather");
+
+end;
+
+trials(importacao_feather_feather, 20)
+```
+
+```{julia}
+Pkg.add("Arrow")
+using Arrow
+
+function importacao_feather_arrow()
+
+  dados_arrow = Arrow.Table("ol_dump_deletes_2025-11-06.feather");
+
+end;
+
+trials(importacao_feather_arrow, 20)
+```
+
+## 2. Arquivo JSON
+
+### a. R
+
+```{r}
+# PACOTE JSONLITE1
+library(jsonlite)
+
+i <- Sys.time()
+dados_jsonlite <- jsonlite::read_json("ol_dump_deletes_2025-11-06.json")
+f <- Sys.time()
+
+tempo_jsonlite1 <- as.numeric(difftime(f, i, units = "secs"))
+tempo_jsonlite1
+```
+
+```{r}
+# PACOTE JSONLITE(segunda função)
+library(jsonlite)
+
+i <- Sys.time()
+dados_jsonlite <- jsonlite::fromJSON("ol_dump_deletes_2025-11-06.json")
+f <- Sys.time()
+
+tempo_jsonlite2 <- as.numeric(difftime(f, i, units = "secs"))
+tempo_jsonlite2
+```
+
+```{r, message=FALSE, warning=FALSE}
+# PACOTE RJSON
+library(rjson)
+
+i <- Sys.time()
+dados_rjson <- rjson::fromJSON(file = "ol_dump_deletes_2025-11-06.json")
+f <- Sys.time()
+
+tempo_rjson <- as.numeric(difftime(f, i, units = "secs"))
+tempo_rjson
+```
+
+```{r, message=FALSE, warning=FALSE}
+# PACOTE RJSONIO
+library(RJSONIO)
+
+i <- Sys.time()
+dados_rjsonio <- RJSONIO::fromJSON("ol_dump_deletes_2025-11-06.json")
+f <- Sys.time()
+
+tempo_rjsonio <- as.numeric(difftime(f, i, units = "secs"))
+tempo_rjsonio
+```
+
+### b. Python
+
+```{r, message = FALSE, warning = FALSE}
+library(reticulate)
+use_python("C:/Users/i1946/OneDrive/Documentos/.virtualenvs/r-reticulate/Scripts/python.exe")
+reticulate::py_install("pandas", quiet = TRUE)
+reticulate::py_install("ijson", quiet = TRUE)
+reticulate::py_install("simplejson", quiet = TRUE)
+reticulate::py_install("ujson", quiet = TRUE)
+```
+
+```{python}
+# PACOTE PARA CRONOMETRAR
+import time
+```
+
+```{python}
+# PACOTE JSON
+import json
+
+i = time.time()
+with open("ol_dump_deletes_2025-11-06.json", 'r', encoding='utf-8') as arquivo1:
+  dados_json = json.load(arquivo1)
+f = time.time()
+
+tempo_json = f - i
+tempo_json
+```
+
+```{python}
+# PACOTE PANDAS
+import pandas as pd
+
+i = time.time()
+dados_pandas = pd.read_json("ol_dump_deletes_2025-11-06.json")
+f = time.time()
+
+tempo_pandas = f - i
+tempo_pandas
+```
+
+```{python}
+# PACOTE IJSON
+import ijson
+
+i = time.time()
+with open("ol_dump_deletes_2025-11-06.json", 'r') as arquivo2:
+    for item in ijson.items(arquivo2, 'item'):
+        pass
+f = time.time()
+
+tempo_ijson = f - i
+tempo_ijson
+```
+
+```{python}
+# PACOTE SIMPLEJSON
+import simplejson
+
+i = time.time()
+with open("ol_dump_deletes_2025-11-06.json", 'r') as arquivo3:
+  dados_simplejson = simplejson.load(arquivo3)
+f = time.time()
+
+tempo_simplejson = f - i
+tempo_simplejson
+```
+
+```{python}
+# PACOTE UJSON
+import ujson
+
+i = time.time()
+with open("ol_dump_deletes_2025-11-06.json", 'r') as arquivo4:
+    dados_ujson = ujson.load(arquivo4)
+f = time.time()
+
+tempo_ujson = f - i
+tempo_ujson
+```
+
+### c. Julia
+
+```{r, message=FALSE, warning=FALSE}
+library(JuliaCall)
+Sys.setenv(JULIA_HOME = "C:/Users/i1946/AppData/Local/Programs/Julia-1.12.1/bin")
+julia_setup()
+```
+
+```{julia}
+# PACOTE PARA CRONOMETRAR
+using BenchmarkTools
+```
+
+```{julia}
+# PACOTE JSON3 - Parte 1
+using JSON3
+
+i = time();
+
+dados_json31 = JSON3.read(read("ol_dump_deletes_2025-11-06.json", String));
+
+f = time();
+
+tempo_json31 = f - i;
+tempo_json31
+```
+
+```{julia}
+# PACOTE JSON3 - Parte 2
+using JSON3
+
+i = time();
+
+dados_json32 = open(JSON3.read, "ol_dump_deletes_2025-11-06.json");
+
+f = time();
+
+tempo_json32 = f - i;
+tempo_json32
+```
+
+```{julia}
+# PACOTE JSON
+using JSON
+
+i = time();
+
+dados_json = JSON.parsefile("ol_dump_deletes_2025-11-06.json");
+
+f = time();
+
+tempo_json = f - i;
+tempo_json
+```
+
+## 3. Arquivo PARQUET
+
+### a. R
+
+```{r}
+# Função no R para o código rodar mais de uma vez
+trials <- function(action, iterations) {
+  tempos <- numeric()
+  
+  for (i in 1:iterations) {
+    tempo1 <- Sys.time()
+    
+    action()
+    
+    tempo2 <- Sys.time()
+    
+    tempos <- c(tempos,as.numeric(tempo2-tempo1))
+  }
+  
+  print(paste("Mean:", mean(tempos)))
+  print(paste("Std:", sd(tempos)))
+}
+```
+
+```{r, message=FALSE, warning=FALSE}
+library(arrow)
+
+importacao_parquet_arrow <- function(){
+
+dados_arrow <- read_parquet("ol_dump_deletes_2025-11-06.parquet")
+
+}
+
+trials(importacao_parquet_arrow,10)
+```
+
+### b. Python
+
+```{r, message = FALSE, warning = FALSE}
+library(reticulate)
+use_python("C:/Users/i1946/OneDrive/Documentos/.virtualenvs/r-reticulate/Scripts/python.exe")
+reticulate::py_install('pandas')
+reticulate::py_install('fastparquet')
+reticulate::py_install("polars")
+reticulate::py_install("lxml")
+reticulate::py_install("statistics")
+```
+
+```{python}
+# PACOTE PARA CRONOMETRAR
+import time
+import pandas
+import lxml
+import statistics
+```
+
+```{python}
+# Função no Python para o código rodar mais de uma vez
+def trials(action, iterations):
+  tempos = []
+  for i in range(iterations):
+    tempo1 = time.time()
+
+    action()
+
+    tempo2 = time.time()
+  
+    tempos.append(tempo2-tempo1)
+
+  print(statistics.mean(tempos))
+  print(statistics.stdev(tempos))
+  return
+```
+
+```{python}
+import pandas as pd
+
+def importacao_parquet_pandas():
+  
+  dados_pandas = pd.read_parquet('ol_dump_deletes_2025-11-06.parquet')
+
+trials(importacao_parquet_pandas, 10)
+```
+
+```{python}
+import fastparquet as fp
+
+def importacao_parquet_fastparquet():
+  
+  dados_fastparquet = fp.ParquetFile('ol_dump_deletes_2025-11-06.parquet').to_pandas()
+
+trials(importacao_parquet_fastparquet, 10)
+```
+
+```{python}
+import polars as pl
+
+def importacao_parquet_polars():
+  
+  dados_polars = pl.read_parquet('ol_dump_deletes_2025-11-06.parquet')
+
+trials(importacao_parquet_polars, 10)
+```
+
+### c. Julia
+
+```{r, message=FALSE, warning=FALSE}
+library(JuliaCall)
+Sys.setenv(JULIA_HOME = "C:/Users/i1946/AppData/Local/Programs/Julia-1.12.1/bin")
+julia_setup()
+```
+
+```{julia}
+# PARA CRONOMETRA
+using BenchmarkTools
+using Pkg
+```
+
+```{julia}
+# PACOTE PARQUET
+Pkg.add("Parquet")
+using Parquet
+
+i = time();
+dados_Parquet = Parquet.read_parquet("ol_dump_deletes_2025-11-06.parquet");
+f = time();
+
+tempo_Parquet = f - i;
+tempo_Parquet
+```
+
+```{julia}
+# PACOTE PARQUET2
+Pkg.add("Parquet2")
+using Parquet2
+
+i = time();
+dados_Parquet2 = Parquet2.readfile("ol_dump_deletes_2025-11-06.parquet");
+f = time();
+
+tempo_Parquet2 = f - i;
+tempo_Parquet2
+```
+
+```{julia}
+# PACOTE ARROW
+Pkg.add("Arrow")
+using Arrow
+
+i = time();
+dados_Arrow = Arrow.Table("ol_dump_deletes_2025-11-06.parquet");
+f = time();
+
+tempo_Arrow = f - i;
+tempo_Arrow
+```
+
+```{julia}
+# Função no Julia para o código rodar mais de uma vez
+using Pkg
+Pkg.add("Statistics")
+Pkg.add("DataFrames")
+using Statistics
+using DataFrames
+
+
+function trials(action::Function, iterations::Int)
+    tempos = Float64[]
+
+    for i in 1:iterations
+        tempo1 = time()  
+
+        action()
+
+        tempo2 = time()
+        push!(tempos, tempo2 - tempo1)
+    end
+
+    println("Mean: ", mean(tempos))
+    println("Std: ", std(tempos))
+end;
+```
+
+```{julia}
+Pkg.add("Parquet")
+using Parquet
+
+function importacao_parquet_parquet()
+
+  dados_Parquet = Parquet.read_parquet("ol_dump_deletes_2025-11-06.parquet");
+
+end;
+
+trials(importacao_parquet_parquet, 10)
+```
+
+```{julia}
+# PACOTE PARQUET2
+Pkg.add("Parquet2")
+using Parquet2
+
+function importacao_parquet_parquet2()
+
+  dados_Parquet2 = Parquet2.readfile("ol_dump_deletes_2025-11-06.parquet");
+
+end;
+
+trials(importacao_parquet_parquet2, 10)
+```
+
+```{julia}
+Pkg.add("Arrow")
+using Arrow
+
+function importacao_parquet_arrow()
+
+  dados_Arrow = Arrow.Table("ol_dump_deletes_2025-11-06.parquet");
+
+end;
+
+trials(importacao_parquet_arrow, 10)
+```

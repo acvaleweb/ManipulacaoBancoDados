@@ -1,0 +1,228 @@
+---
+title: Relatório - Trabalho - Csv, Xlsx, tsv
+format: html
+---
+## R
+```{r}
+library(reticulate)
+use_condaenv("r-reticulate", required = TRUE)
+```
+
+```{r}
+
+### Funçao 
+trials <- function(action, iterations) {
+  tempos <- numeric()
+  
+  for (i in 1:iterations) {
+    tempo1 <- Sys.time()
+    
+    action()
+    
+    tempo2 <- Sys.time()
+    
+    tempos <- c(tempos,as.numeric(tempo2-tempo1))
+  }
+  
+  print(mean(tempos))
+  print(sd(tempos))
+}
+
+
+
+
+```
+
+#CSV
+
+```{r}
+library(rvest)
+library(tidyverse)
+library(data.table)
+
+importacao_csv <- function(){
+  
+  stocks <- read_csv("merged.csv", show_col_types = FALSE)
+  stocks
+
+}
+
+trials(importacao_csv,10)
+```
+# XLSX
+
+```{r}
+library(readxl)
+
+importacao_xlsx <- function(){
+  
+  stocks <- read_excel("adult.xlsx", col_types = "text", skip = 5)
+  stocks
+
+}
+
+trials(importacao_xlsx,10)
+```
+# TSV
+
+```{r}
+importacao_tsv <- function(){
+  
+  stocks <- read_tsv("name.basics.tsv", show_col_types = FALSE)
+  stocks
+}
+
+trials(importacao_tsv,10)
+```
+## Python: 
+
+```{r}
+
+# Codigo Python
+py_run_string("
+import time
+import statistics
+import pandas as pd
+
+def trials(action, iterations):
+    iterations = int(iterations)   # <-- FIX
+    tempos = []
+    for i in range(iterations):
+        tempo1 = time.time()
+        action()
+        tempo2 = time.time()
+        tempos.append(tempo2 - tempo1)
+
+    print('Mean:', statistics.mean(tempos))
+    print('StdDev:', statistics.stdev(tempos))
+
+
+def import_csv():
+    return pd.read_csv('merged.csv')
+
+def import_tsv():
+    return pd.read_csv('name.basics.tsv', sep='\\t')
+
+def import_xlsx():
+    return pd.read_excel('adult.xlsx')
+")
+```
+
+# CSv
+
+```{r}
+ py$trials(py$import_csv, 10)
+```
+# Xlsx
+
+```{r}
+py$trials(py$import_xlsx, 10)
+```
+
+# TSV
+
+```{r}
+py$trials(py$import_tsv, 10)
+```
+
+
+## Julia
+
+```{r}
+
+
+library(JuliaCall)
+julia_setup()
+
+
+
+julia_command("function trials(action::Function, iterations::Int)
+    tempos = Float64[]
+
+    for i in 1:iterations
+        tempo1 = time()  
+
+        action()
+
+        tempo2 = time()
+        push!(tempos, tempo2 - tempo1)
+    end
+
+    println(mean(tempos))
+    println(std(tempos))
+end
+  ")
+```
+
+# csv
+
+```{julia}
+
+
+using CSV
+using DataFrames
+using Statistics
+
+function importacao_csv_julia()
+
+    df = CSV.read("merged.csv", DataFrame)
+
+    return df
+end
+
+trials(importacao_csv_julia,10)
+```
+
+# TSV
+
+```{julia}
+
+using CSV
+using DataFrames
+
+function importacao_tsv_julia()
+
+    df = CSV.read("name.basics.tsv", DataFrame; delim="\t")
+
+    return df
+end
+
+trials(importacao_tsv_julia,10)
+
+
+
+```
+
+# XLSX
+
+```{Julia}
+using Statistics
+
+function trials(action::Function, iterations::Int)
+    tempos = Float64[]
+
+    for i in 1:iterations
+        tempo1 = time()  
+
+        action()
+
+        tempo2 = time()
+        push!(tempos, tempo2 - tempo1)
+    end
+
+    println(mean(tempos))
+    println(std(tempos))
+end
+
+using XLSX
+using DataFrames
+
+function importacao_xlsx_julia()
+    data = XLSX.readxlsx("adult.xlsx")
+    return data
+end
+
+trials(importacao_xlsx_julia, 10)
+
+```
+

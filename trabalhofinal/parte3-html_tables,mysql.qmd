@@ -1,0 +1,224 @@
+---
+title: "Relatório - Trabalho - HTML tables e SQLite"
+author: "Antonio Cyrineu Vale - 240453"
+format: 
+  html: 
+    self-contained: true
+
+editor: visual
+execute:
+  warning: false    # escondendo output indesejado 
+  message: false    # escondendo output indesejado
+---
+
+# HTML TABLES
+
+```{r}
+trials <- function(action, iterations) {
+  tempos <- numeric()
+  
+  for (i in 1:iterations) {
+    tempo1 <- Sys.time()
+    
+    action()
+    
+    tempo2 <- Sys.time()
+    
+    tempos <- c(tempos,as.numeric(tempo2-tempo1))
+  }
+  
+  print(mean(tempos))
+  print(sd(tempos))
+}
+```
+
+```{r}
+
+library(rvest)
+
+importacao_html_rvest <- function(){
+  
+  stocks <- read_html("medidas_1000.html")
+  stocks <- html_table(html_nodes(stocks, "table"), fill = TRUE)
+  stocks <- stocks[[1]]
+    
+}
+
+trials(importacao_html_rvest,10)
+```
+
+```{r}
+library(XML)
+
+importacao_html_XML <- function() {
+  
+  stocks <- readHTMLTable("medidas_1000.html")
+  stocks <- stocks[[1]]
+  
+}
+
+trials(importacao_html_XML, 10)
+```
+
+```{r}
+library(reticulate)
+virtualenv_create("myenv")
+
+use_virtualenv("myenv")
+py_install("pandas", envname="myenv")
+py_install("bs4", envname="myenv")
+py_install("lxml", envname="myenv")
+py_install("duckdb", envname="myenv")
+```
+
+```{python}
+import time
+import statistics
+
+def trials(action, iterations):
+  tempos = []
+  for i in range(iterations):
+    tempo1 = time.time()
+
+    action()
+
+    tempo2 = time.time()
+  
+    tempos.append(tempo2-tempo1)
+
+  print(statistics.mean(tempos))
+  print(statistics.stdev(tempos))
+  return
+```
+
+```{python}
+import pandas
+import lxml
+
+def importacao_html_pandas():
+  stocks = pandas.read_html("medidas_1000.html")[0]
+
+trials(importacao_html_pandas, 10)
+```
+
+```{python}
+from bs4 import BeautifulSoup
+
+def importacao_html_bs4():
+  with open("medidas_1000.html", encoding="utf-8") as f:
+    scrape = BeautifulSoup(f,"html.parser")
+  
+  tabela = scrape.find("table")
+  linhas = []
+  for tr in tabela.find_all("tr"):
+    linhas.append([td.get_text(strip=True) for td in tr.find_all(["td","th"])])
+    
+  stocks = pandas.DataFrame(linhas[1:], columns=linhas[0])
+
+trials(importacao_html_bs4, 10)
+```
+
+```{python}
+from lxml import html
+def importacao_html_lxml():
+  
+  stocks = html.parse("medidas_1000.html")
+  stocks = stocks.xpath("//table")[0]
+  stocks = pandas.read_html(html.tostring(stocks))[0]
+  
+trials(importacao_html_lxml,10)
+```
+
+```{julia}
+using Statistics
+using DataFrames
+
+
+function trials(action::Function, iterations::Int)
+    tempos = Float64[]
+
+    for i in 1:iterations
+        tempo1 = time()  
+
+        action()
+
+        tempo2 = time()
+        push!(tempos, tempo2 - tempo1)
+    end
+
+    println(mean(tempos))
+    println(std(tempos))
+end
+
+
+```
+
+```{julia}
+using HTMLTables
+
+function importacao_html_julia()
+  stocks = HTMLTables.readtable("medidas_1000.html", DataFrame)
+
+end
+
+  
+trials(importacao_html_julia, 10)
+```
+
+# DB
+
+```{r}
+library(DBI)
+library(RSQLite)
+
+importacao_mysql_RSQL <- function(){
+
+con <- dbConnect(SQLite(), "password_data.sqlite")
+senhas <- dbReadTable(con, "Users")
+dbDisconnect(con)
+}
+
+trials(importacao_mysql_RSQL,100)
+```
+
+```{r}
+library(data.table)
+
+importacao_sqlite_datatable <- function(){
+con <- dbConnect(SQLite(), "password_data.sqlite")
+senhas <- setDT(dbGetQuery(con, "SELECT * FROM Users"))
+dbDisconnect(con)
+}
+
+trials(importacao_sqlite_datatable, 100)
+
+```
+
+```{python}
+import sqlite3
+def importacao_sqlite_python():
+  conn = sqlite3.connect("password_data.sqlite")
+  senhas = pandas.read_sql_query("SELECT * FROM Users", conn)
+  conn.close()
+
+trials(importacao_sqlite_python,100)
+
+```
+
+```{julia}
+using SQLite
+using DataFrames
+
+function importacao_sqlite_julia()
+
+  db = SQLite.DB("password_data.sqlite")
+  
+  senhas = DBInterface.execute(db, "SELECT * FROM Users") |> DataFrame
+
+  SQLite.close(db)
+
+end
+
+trials(importacao_sqlite_julia,100)
+
+```

@@ -1,0 +1,183 @@
+---
+title: "Relatório - Trabalho - Chunks"
+author: "Antonio Cyrineu Vale - 240453"
+format: 
+  html: 
+    self-contained: true
+
+editor: visual
+execute:
+  warning: false    # escondendo output indesejado 
+  message: false    # escondendo output indesejado
+---
+
+# Importação em chunks no R
+
+```{r}
+trials <- function(action, iterations) {
+  tempos <- numeric()
+  
+  for (i in 1:iterations) {
+    tempo1 <- Sys.time()
+    
+    action()
+    
+    tempo2 <- Sys.time()
+    
+    tempos <- c(tempos,as.numeric(tempo2-tempo1))
+  }
+  
+  print(mean(tempos))
+  print(sd(tempos))
+}
+```
+
+```{r}
+library(reticulate)
+virtualenv_create("myenv")
+
+use_virtualenv("myenv")
+py_install("pandas", envname="myenv")
+py_install("bs4", envname="myenv")
+py_install("lxml", envname="myenv")
+py_install("duckdb", envname="myenv")
+```
+
+```{python}
+import time
+import statistics
+
+def trials(action, iterations):
+  tempos = []
+  for i in range(iterations):
+    tempo1 = time.time()
+
+    action()
+
+    tempo2 = time.time()
+  
+    tempos.append(tempo2-tempo1)
+
+  print(statistics.mean(tempos))
+  print(statistics.stdev(tempos))
+  return
+```
+
+```{julia}
+using Statistics
+using DataFrames
+
+
+function trials(action::Function, iterations::Int)
+    tempos = Float64[]
+
+    for i in 1:iterations
+        tempo1 = time()  
+
+        action()
+
+        tempo2 = time()
+        push!(tempos, tempo2 - tempo1)
+    end
+
+    println(mean(tempos))
+    println(std(tempos))
+end
+
+
+```
+
+# Importação em chunks no Python
+
+```{python}
+import pandas
+
+def importacao_chunks_python():
+
+  #definindo tamanho do chunk, criando variáveis para armazenar valores
+  reviews_positivo = 0
+  total_reviews = 0
+
+  chunks = pandas.read_csv("imdb.csv", chunksize=2000)
+
+  #loop que importa cada chunk
+  for chunk in chunks:
+  
+    reviews_positivo += (chunk["sentiment"] == "positive").sum()
+    total_reviews += len(chunk)
+  
+  print(f"porcentagem de reviews positivos: {100*reviews_positivo/total_reviews}%")
+  
+
+trials(importacao_chunks_python,10)
+
+```
+
+```{r}
+library(readr)
+library(dplyr)
+
+importacao_chunks_R <- function() {
+
+  #definindo variáveis acumuladoras
+  reviews_positivo <- 0
+  total_reviews <- 0
+
+  #função chamada para cada chunk
+  processar_chunk <- function(chunk, pos) {
+
+    reviews_positivo <<- reviews_positivo +
+      sum(chunk$sentiment == "positive")
+
+    total_reviews <<- total_reviews + nrow(chunk)
+  }
+
+  #leitura em chunks
+  read_csv_chunked(
+    file = "imdb.csv",
+    callback = SideEffectChunkCallback$new(processar_chunk),
+    chunk_size = 2000,
+    progress = FALSE
+  )
+
+
+  cat(sprintf("porcentagem de reviews positivos: %.2f%%\n",
+    100 * reviews_positivo / total_reviews))
+}
+
+trials(importacao_chunks_R, 10)
+```
+
+# Importação em chunks no Julia
+
+```{julia}
+using CSV
+using DataFrames
+
+function importacao_chunks_julia()
+
+    reviews_positivo = 0
+    total_reviews = 0
+
+    chunk_size = 2000
+    buffer = DataFrame()
+
+    #lê linha por linha, acumulando em chunks de 2000 (procedimento "manual", comparando com pacotes R ou Python)
+    for row in CSV.File("imdb.csv")
+
+        push!(buffer, row)
+
+        if nrow(buffer) == chunk_size
+            reviews_positivo += sum(buffer.sentiment .== "positive")
+            total_reviews += chunk_size
+            empty!(buffer)   #limpa para o próximo chunk
+        end
+    end
+
+    porc = 100 * reviews_positivo / total_reviews
+    println("porcentagem de reviews positivos: $(round(porc, digits=2))%")
+end
+
+trials(importacao_chunks_julia, 10)
+
+```
